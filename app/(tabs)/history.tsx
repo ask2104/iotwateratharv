@@ -96,7 +96,7 @@ export default function History() {
 
       <View style={styles.readingsList}>
         <Text style={styles.readingsTitle}>Recent Readings</Text>
-        {tdsData.reverse().map((reading, index) => (
+        {[...tdsData].reverse().map((reading, index) => (
           <View key={index} style={styles.readingItem}>
             <View>
               <Text style={styles.readingTime}>

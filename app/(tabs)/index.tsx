@@ -6,16 +6,41 @@ import { useState, useEffect } from 'react';
 export default function Dashboard() {
   const [tds, setTds] = useState(250);
   const [temperature, setTemperature] = useState(25);
+  const [error, setError] = useState<string | null>(null);
 
   // Simulate real-time data updates
   useEffect(() => {
     const interval = setInterval(() => {
-      setTds(prev => prev + (Math.random() - 0.5) * 20);
-      setTemperature(prev => prev + (Math.random() - 0.5) * 2);
+      try {
+        // In a real app, this would be an API call
+        const newTds = tds + (Math.random() - 0.5) * 20;
+        const newTemp = temperature + (Math.random() - 0.5) * 2;
+        
+        // Validate the data
+        if (newTds < 0 || newTemp < 0) {
+          throw new Error('Invalid sensor readings detected');
+        }
+        
+        setTds(newTds);
+        setTemperature(newTemp);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to update sensor data');
+        console.error('Error updating sensor data:', err);
+      }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [tds, temperature]);
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.errorContainer]}>
+        <Text style={styles.errorText}>Error: {error}</Text>
+        <Text style={styles.errorSubtext}>Please check your sensor connection</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -69,10 +94,22 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   gaugesContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    flexWrap: 'wrap',
-    padding: 16,
-    gap: 16,
+    paddingHorizontal: 16,
+  },
+  errorContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorText: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 16,
+    color: '#ef4444',
+    marginBottom: 8,
+  },
+  errorSubtext: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    color: '#64748b',
   },
 });

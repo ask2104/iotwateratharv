@@ -1,5 +1,6 @@
 import { StyleSheet, View, Platform } from 'react-native';
 import { Text as RNText } from 'react-native';
+import { useMemo } from 'react';
 
 interface GaugeChartProps {
   value: number;
@@ -11,6 +12,16 @@ interface GaugeChartProps {
   color: string;
 }
 
+// Import Skia components only for native platforms
+let SkiaComponents: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    SkiaComponents = require('@shopify/react-native-skia');
+  } catch (error) {
+    console.warn('Failed to load Skia components:', error);
+  }
+}
+
 export function GaugeChart({
   value,
   maxValue,
@@ -20,8 +31,8 @@ export function GaugeChart({
   unit,
   color,
 }: GaugeChartProps) {
-  // For web platform, we'll show a simplified version since Skia is not working
-  if (Platform.OS === 'web') {
+  // For web platform or if Skia failed to load, show a simplified version
+  if (Platform.OS === 'web' || !SkiaComponents) {
     return (
       <View style={styles.container}>
         <View style={[styles.gauge, { width: size, height: size / 2 }]}>
@@ -39,29 +50,44 @@ export function GaugeChart({
     );
   }
 
-  // Import Skia components only for native platforms
-  const { Canvas, Circle, Group, Path, Skia, Text } = require('@shopify/react-native-skia');
+  const { Canvas, Group, Path, Skia, Text } = SkiaComponents;
   
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
   const halfCircumference = circumference / 2;
-  const percentage = (value / maxValue) * 100;
+  const percentage = Math.min(Math.max((value / maxValue) * 100, 0), 100); // Clamp between 0-100
   const strokeDashOffset = halfCircumference - (percentage / 100) * halfCircumference;
 
   const path = useMemo(() => {
-    const centerX = size / 2;
-    const centerY = size / 2;
-    const startAngle = Math.PI;
-    const endAngle = 0;
+    if (!Skia?.Path?.Make) {
+      console.warn('Skia Path.Make is not available');
+      return null;
+    }
 
-    const skPath = Skia.Path.Make();
-    skPath.addArc(
-      { x: thickness / 2, y: thickness / 2, width: size - thickness, height: size - thickness },
-      startAngle * (180 / Math.PI),
-      (endAngle - startAngle) * (180 / Math.PI)
-    );
-    return skPath;
+    try {
+      const startAngle = Math.PI;
+      const endAngle = 0;
+
+      const skPath = Skia.Path.Make();
+      skPath.addArc(
+        { x: thickness / 2, y: thickness / 2, width: size - thickness, height: size - thickness },
+        startAngle * (180 / Math.PI),
+        (endAngle - startAngle) * (180 / Math.PI)
+      );
+      return skPath;
+    } catch (error) {
+      console.error('Failed to create Skia path:', error);
+      return null;
+    }
   }, [size, thickness]);
+
+  if (!path) {
+    return (
+      <View style={styles.container}>
+        <RNText style={styles.errorText}>Failed to render gauge</RNText>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -134,5 +160,10 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Inter-Regular',
     fontSize: 14,
+  },
+  errorText: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    color: '#ef4444',
   },
 });
