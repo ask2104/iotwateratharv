@@ -1,6 +1,22 @@
-import { StyleSheet, View, Text, ScrollView, Pressable, Platform } from 'react-native';
-import { useState } from 'react';
+import { StyleSheet, View, Text, ScrollView, Pressable, Platform, Animated } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { Wifi, WifiOff, Bluetooth, BluetoothOff, RefreshCw } from 'lucide-react-native';
+
+// Add keyframe animation for web platform
+if (Platform.OS === 'web') {
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 interface Device {
   id: string;
@@ -29,6 +45,29 @@ export default function Devices() {
     },
   ]);
 
+  const spinValue = useRef(new Animated.Value(0)).current;
+
+  // Set up the animation
+  useEffect(() => {
+    if (scanning) {
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      spinValue.setValue(0);
+    }
+  }, [scanning]);
+
+  // Create the rotation interpolation
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
+
   const handleScan = () => {
     setScanning(true);
     setTimeout(() => {
@@ -49,14 +88,15 @@ export default function Devices() {
         <Pressable
           style={[styles.scanButton, scanning && styles.scanningButton]}
           onPress={handleScan}>
-          <RefreshCw
-            size={20}
-            color="#ffffff"
-            style={[scanning && Platform.select({
-              web: { animationName: 'spin', animationDuration: '1s', animationIterationCount: 'infinite', animationTimingFunction: 'linear' },
-              default: styles.rotating
-            })]}
-          />
+          {Platform.OS === 'web' ? (
+            <View style={scanning ? styles.webSpinAnimation : undefined}>
+              <RefreshCw size={20} color="#ffffff" />
+            </View>
+          ) : (
+            <Animated.View style={{ transform: [{ rotate: spin }] }}>
+              <RefreshCw size={20} color="#ffffff" />
+            </Animated.View>
+          )}
           <Text style={styles.scanButtonText}>
             {scanning ? 'Scanning...' : 'Scan'}
           </Text>
@@ -129,9 +169,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 8,
   },
-  rotating: {
-    transform: [{ rotate: '360deg' }],
-  },
   devicesList: {
     padding: 16,
   },
@@ -164,4 +201,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  webSpinAnimation: {
+    animation: 'spin 1s linear infinite',
+  } as any, // Type assertion needed for web-specific CSS
 });
