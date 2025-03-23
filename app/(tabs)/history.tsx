@@ -1,190 +1,214 @@
-import { StyleSheet, View, Text, ScrollView, Dimensions } from 'react-native';
-import { VictoryLine, VictoryChart, VictoryAxis, VictoryTheme } from 'victory-native';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useTheme } from '../../theme/ThemeContext';
+import { supabaseService, SensorReading } from '../../services/supabaseService';
+import { useDeviceStore } from '../../store/deviceStore';
+import { Ionicons } from '@expo/vector-icons';
 
-const screenWidth = Dimensions.get('window').width;
+export default function HistoryScreen() {
+  const { theme } = useTheme();
+  const { selectedDevice } = useDeviceStore();
+  const [readings, setReadings] = useState<SensorReading[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default function History() {
-  const [tdsData] = useState([
-    { x: new Date('2024-01-20T00:00:00'), y: 250 },
-    { x: new Date('2024-01-20T04:00:00'), y: 280 },
-    { x: new Date('2024-01-20T08:00:00'), y: 310 },
-    { x: new Date('2024-01-20T12:00:00'), y: 290 },
-    { x: new Date('2024-01-20T16:00:00'), y: 270 },
-    { x: new Date('2024-01-20T20:00:00'), y: 260 },
-    { x: new Date('2024-01-20T23:59:59'), y: 255 },
-  ]);
+  useEffect(() => {
+    fetchReadings();
+  }, [selectedDevice]);
 
-  const [tempData] = useState([
-    { x: new Date('2024-01-20T00:00:00'), y: 25 },
-    { x: new Date('2024-01-20T04:00:00'), y: 24 },
-    { x: new Date('2024-01-20T08:00:00'), y: 26 },
-    { x: new Date('2024-01-20T12:00:00'), y: 28 },
-    { x: new Date('2024-01-20T16:00:00'), y: 27 },
-    { x: new Date('2024-01-20T20:00:00'), y: 26 },
-    { x: new Date('2024-01-20T23:59:59'), y: 25 },
-  ]);
+  const fetchReadings = async () => {
+    if (!selectedDevice) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await supabaseService.getLatestReadings(selectedDevice.id, 24);
+      setReadings(data);
+    } catch (err) {
+      setError('Failed to fetch historical data');
+      console.error('Error fetching readings:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getDrinkabilityColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'excellent':
+        return theme.colors.success;
+      case 'good':
+        return theme.colors.warning;
+      case 'fair':
+        return theme.colors.warning;
+      case 'poor':
+        return theme.colors.error;
+      default:
+        return theme.colors.text;
+    }
+  };
+
+  if (!selectedDevice) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.text, { color: theme.colors.text }]}>
+          Please select a device in the Devices tab
+        </Text>
+      </View>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.text, { color: theme.colors.text }]}>
+          Loading historical data...
+        </Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>
+          {error}
+        </Text>
+        <Pressable
+          style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
+          onPress={fetchReadings}
+        >
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>History</Text>
-        <Text style={styles.subtitle}>24-hour Trends</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>History</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.text }]}>
+          Last 24 readings from {selectedDevice.name}
+        </Text>
       </View>
 
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>TDS Levels (PPM)</Text>
-        <VictoryChart
-          width={screenWidth - 32}
-          height={200}
-          theme={VictoryTheme.material}
-          padding={{ top: 10, bottom: 40, left: 50, right: 20 }}>
-          <VictoryAxis
-            tickFormat={(t) => {
-              const date = new Date(t);
-              return `${date.getHours()}:00`;
-            }}
-            style={{
-              tickLabels: { fontSize: 10, padding: 5 },
-            }}
-          />
-          <VictoryAxis
-            dependentAxis
-            style={{
-              tickLabels: { fontSize: 10, padding: 5 },
-            }}
-          />
-          <VictoryLine
-            data={tdsData}
-            style={{
-              data: { stroke: '#0891b2' },
-            }}
-          />
-        </VictoryChart>
-      </View>
-
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Temperature (°C)</Text>
-        <VictoryChart
-          width={screenWidth - 32}
-          height={200}
-          theme={VictoryTheme.material}
-          padding={{ top: 10, bottom: 40, left: 50, right: 20 }}>
-          <VictoryAxis
-            tickFormat={(t) => {
-              const date = new Date(t);
-              return `${date.getHours()}:00`;
-            }}
-            style={{
-              tickLabels: { fontSize: 10, padding: 5 },
-            }}
-          />
-          <VictoryAxis
-            dependentAxis
-            style={{
-              tickLabels: { fontSize: 10, padding: 5 },
-            }}
-          />
-          <VictoryLine
-            data={tempData}
-            style={{
-              data: { stroke: '#f97316' },
-            }}
-          />
-        </VictoryChart>
-      </View>
-
-      <View style={styles.readingsList}>
-        <Text style={styles.readingsTitle}>Recent Readings</Text>
-        {[...tdsData].reverse().map((reading, index) => (
-          <View key={index} style={styles.readingItem}>
-            <View>
-              <Text style={styles.readingTime}>
-                {new Date(reading.x).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+      <ScrollView style={styles.readingsList}>
+        {readings.map((reading) => (
+          <View
+            key={reading.id}
+            style={[styles.readingCard, { backgroundColor: theme.colors.card }]}
+          >
+            <View style={styles.readingHeader}>
+              <Text style={[styles.timestamp, { color: theme.colors.text }]}>
+                {new Date(reading.timestamp).toLocaleString()}
               </Text>
-              <Text style={styles.readingDate}>
-                {new Date(reading.x).toLocaleDateString()}
-              </Text>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: getDrinkabilityColor(reading.drinkability) },
+                ]}
+              >
+                <Text style={styles.statusText}>{reading.drinkability}</Text>
+              </View>
             </View>
+
             <View style={styles.readingValues}>
-              <Text style={styles.readingValue}>{reading.y} PPM</Text>
-              <Text style={styles.readingValue}>
-                {tempData[tdsData.length - 1 - index].y}°C
-              </Text>
+              <View style={styles.valueContainer}>
+                <Ionicons name="water" size={20} color={theme.colors.primary} />
+                <Text style={[styles.value, { color: theme.colors.text }]}>
+                  {reading.tds_value} ppm
+                </Text>
+              </View>
+              <View style={styles.valueContainer}>
+                <Ionicons name="thermometer" size={20} color={theme.colors.primary} />
+                <Text style={[styles.value, { color: theme.colors.text }]}>
+                  {reading.temperature}°C
+                </Text>
+              </View>
             </View>
           </View>
         ))}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    padding: 16,
   },
   header: {
     padding: 24,
     paddingTop: 48,
   },
   title: {
-    fontFamily: 'SpaceGrotesk-SemiBold',
     fontSize: 32,
-    color: '#0f172a',
+    fontWeight: 'bold',
     marginBottom: 4,
   },
   subtitle: {
-    fontFamily: 'Inter-Regular',
     fontSize: 16,
-    color: '#64748b',
-  },
-  chartContainer: {
-    padding: 16,
-    backgroundColor: '#ffffff',
-  },
-  chartTitle: {
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 16,
-    color: '#0f172a',
-    marginBottom: 16,
   },
   readingsList: {
+    flex: 1,
+  },
+  readingCard: {
     padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
   },
-  readingsTitle: {
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 16,
-    color: '#0f172a',
-    marginBottom: 16,
-  },
-  readingItem: {
+  readingHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    marginBottom: 12,
   },
-  readingTime: {
-    fontFamily: 'Inter-SemiBold',
+  timestamp: {
     fontSize: 14,
-    color: '#0f172a',
   },
-  readingDate: {
-    fontFamily: 'Inter-Regular',
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: '#ffffff',
     fontSize: 12,
-    color: '#64748b',
+    fontWeight: 'bold',
   },
   readingValues: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  readingValue: {
-    fontFamily: 'Inter-Regular',
-    fontSize: 14,
-    color: '#0f172a',
+  valueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  text: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  retryButton: {
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    alignSelf: 'center',
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

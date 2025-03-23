@@ -53,7 +53,6 @@ void setup() {
   server.on("/device-status", HTTP_GET, handleDeviceStatus);
   server.on("/wifi-config", HTTP_POST, handleWiFiConfig);
   server.on("/historical-data", HTTP_GET, handleHistoricalData);
-  server.on("/clear-history", HTTP_POST, handleClearHistory);
   
   server.begin();
   Serial.println("HTTP server started");
@@ -155,16 +154,6 @@ void handleHistoricalData() {
   serializeJson(doc, response);
   
   server.send(200, "application/json", response);
-}
-
-void handleClearHistory() {
-  // Reset all readings to zero
-  for (int i = 0; i < MAX_READINGS; i++) {
-    readings[i] = {0, 0, 0};
-  }
-  currentReading = 0;
-  
-  server.send(200, "application/json", "{\"status\":\"success\"}");
 }
 
 void saveWiFiCredentials(const char* newSsid, const char* newPassword) {

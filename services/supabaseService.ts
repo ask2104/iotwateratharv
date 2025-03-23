@@ -1,12 +1,5 @@
 import { supabase } from '../lib/supabase';
-
-export interface Device {
-  id: string;
-  name: string;
-  ip_address: string;
-  last_seen: string;
-  status: string;
-}
+import { Device } from '../types/device';
 
 export interface SensorReading {
   id: string;
@@ -112,5 +105,15 @@ export const supabaseService = {
         (payload) => callback(payload.new as SensorReading)
       )
       .subscribe();
+  },
+
+  // Clear history
+  async clearHistory() {
+    const { error } = await supabase
+      .from('sensor_readings')
+      .delete()
+      .neq('id', 'dummy'); // Delete all records
+
+    if (error) throw error;
   },
 }; 
