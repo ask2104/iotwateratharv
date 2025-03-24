@@ -98,7 +98,7 @@ export default function Settings() {
             thumbColor={Platform.OS === 'ios' ? '#ffffff' : undefined}
           />
         </View>
-      </View>
+        </View>
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Data Management</Text>
